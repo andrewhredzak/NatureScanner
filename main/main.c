@@ -49,6 +49,9 @@
 #define CAM_PIN_HREF 23
 #define CAM_PIN_PCLK 22
 
+//camera defs 
+#define FRAME_PER_SEC 1
+
 // SD Card Mount point
 #define MOUNT_POINT "/sdcard"
 
@@ -243,6 +246,7 @@ static esp_err_t capture_and_save_image() {
     return ESP_OK;
 }
 
+// loops and captures images every N seconds
 void image_capture_task(void *pvParameters)
 {
     while (1) {
@@ -254,8 +258,8 @@ void image_capture_task(void *pvParameters)
             // Optional: Add retry or error flag handling here
         }
 
-        ESP_LOGI(TAG, "Waiting 1 second...");
-        vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second
+        ESP_LOGI(TAG, "PROCESSING IMAGE...");  // waiting .. seconds 
+        vTaskDelay(pdMS_TO_TICKS(1000/FRAME_PER_SEC));  // Wait N seconds
     }
 }
 
@@ -336,27 +340,16 @@ void app_main(void)
     //  GPS task launch
     xTaskCreate(gps_task,"gps_task",GPS_TASK_STACK_SIZE,(void*)UART_NUM,GPS_TASK_PRIORITY,NULL);
     
+
+    //+++++++++++    will use ov2640 separate code for esp32-CAM1 for now..
     // Launch image capture task
-    xTaskCreate(image_capture_task,"image_capture_task",4096, NULL, OV2640_TASK_PRIORITY, NULL);
+    //xTaskCreate(image_capture_task,"image_capture_task",4096, NULL, OV2640_TASK_PRIORITY, NULL);
 
 
     
-    /*
-    // ---  Loop to capture images every N seconds ---
+    
 
-    while(1) {
-        ESP_LOGI(TAG,"--- Taking photo in loop ---");
-        ret = capture_and_save_image();
-        if (ret != ESP_OK) {
-             ESP_LOGE(TAG, "Failed to capture and save image in loop.");
-             // Decide how to handle errors in loop (retry, stop, etc.)
-        }
-        ESP_LOGI(TAG,"Waiting 1 seconds...");
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Wait 1 seconds
-    }
-    */
-
-    // --- Cleanup (if not looping forever) ---
+    // --- SD Cleanup (if not looping forever) ---
     //ESP_LOGI(TAG, "Unmounting SD card...");
     //esp_vfs_fat_sdcard_unmount(mount_point, card);
     //ESP_LOGI(TAG, "SD card unmounted");
