@@ -143,6 +143,7 @@ void gps_task(uart_port_t uart_num) {
 
     while (1) {
         // Read data from UART1
+        //ESP_LOGI(TAG, "in gps_task.");
         //ESP_LOGI(TAG, "uart_num:%d", uart_num);
         int len = uart_read_bytes(uart_num, buffer, RX_BUFFER_SIZE - 1, pdMS_TO_TICKS(100));
         //ESP_LOGI(TAG, "len:%d", len);

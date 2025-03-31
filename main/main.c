@@ -27,6 +27,7 @@
 // NEO-6 GPS defs
 #define GPS_TASK_STACK_SIZE (4096)  // Increased stack size
 #define GPS_TASK_PRIORITY    (5)    // Medium priority
+#define OV2640_TASK_PRIORITY (5)    // Medium priority
 
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
@@ -141,6 +142,8 @@ static esp_err_t init_sdcard() {
     // CMD: 15, CLK: 14, D0: 2, D1: 4, D2: 12, D3: 13
     // These are usually configured by default if you enable SDMMC Host in menuconfig.
     // If your board is different, override pins here:
+
+    
     // slot_config.clk = GPIO_NUM_14;
     // slot_config.cmd = GPIO_NUM_15;
     // slot_config.d0 = GPIO_NUM_2;
@@ -240,9 +243,44 @@ static esp_err_t capture_and_save_image() {
     return ESP_OK;
 }
 
+void image_capture_task(void *pvParameters)
+{
+    while (1) {
+        ESP_LOGI(TAG, "-- Taking photo in task loop ---");
+        esp_err_t ret = capture_and_save_image();
+
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to capture and save image.");
+            // Optional: Add retry or error flag handling here
+        }
+
+        ESP_LOGI(TAG, "Waiting 1 second...");
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second
+    }
+}
+
+
 
 void app_main(void)
 {
+
+
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+    ESP_LOGI(TAG, "SDMMC Config:");
+    /*
+    ESP_LOGI(TAG, "  CLK -> GPIO %d", slot_config.clk);
+    ESP_LOGI(TAG, "  CMD -> GPIO %d", slot_config.cmd);
+    ESP_LOGI(TAG, "  D0  -> GPIO %d", slot_config.d0);
+    ESP_LOGI(TAG, "  D1  -> GPIO %d", slot_config.d1);
+    ESP_LOGI(TAG, "  D2  -> GPIO %d", slot_config.d2);
+    ESP_LOGI(TAG, "  D3  -> GPIO %d", slot_config.d3);
+    ESP_LOGI(TAG, "  Width -> %d-bit", slot_config.width);
+    */
+    
+
+
+
     printf("                    ▒█▒█▓▒██░ ▒                 \n");
     printf("                     ░▓▓▓ ▒█▓              \n");
     printf("                      ░██▒                 \n");
@@ -291,10 +329,19 @@ void app_main(void)
     // Wait a bit for camera sensor to stabilize (optional)
     vTaskDelay(pdMS_TO_TICKS(3000));
 
+    // GPS uart define 
+    const uart_port_t uart_num = UART_NUM;
+    uart_init(uart_num);
+
+    //  GPS task launch
+    xTaskCreate(gps_task,"gps_task",GPS_TASK_STACK_SIZE,(void*)UART_NUM,GPS_TASK_PRIORITY,NULL);
+    
+    // Launch image capture task
+    xTaskCreate(image_capture_task,"image_capture_task",4096, NULL, OV2640_TASK_PRIORITY, NULL);
 
 
     
-
+    /*
     // ---  Loop to capture images every N seconds ---
 
     while(1) {
@@ -307,12 +354,12 @@ void app_main(void)
         ESP_LOGI(TAG,"Waiting 1 seconds...");
         vTaskDelay(pdMS_TO_TICKS(1000)); // Wait 1 seconds
     }
-
+    */
 
     // --- Cleanup (if not looping forever) ---
-    ESP_LOGI(TAG, "Unmounting SD card...");
-    esp_vfs_fat_sdcard_unmount(mount_point, card);
-    ESP_LOGI(TAG, "SD card unmounted");
+    //ESP_LOGI(TAG, "Unmounting SD card...");
+    //esp_vfs_fat_sdcard_unmount(mount_point, card);
+    //ESP_LOGI(TAG, "SD card unmounted");
 
     // Deinitialize SDMMC host peripheral
     // Note: Check if sdmmc_host_deinit() exists and is needed in your IDF version.
@@ -322,13 +369,7 @@ void app_main(void)
     //     ESP_LOGE(TAG, "Failed to deinitialize SDMMC host");
     // }
 
-    /*
-     const uart_port_t uart_num = UART_NUM;
-    uart_init(uart_num);
-
-    // Launch GPS task
-    xTaskCreate(gps_task,"gps_task",GPS_TASK_STACK_SIZE,(void*)UART_NUM,GPS_TASK_PRIORITY,NULL);
-    */
+    
     
     ESP_LOGI(TAG, "success!!!");
 
